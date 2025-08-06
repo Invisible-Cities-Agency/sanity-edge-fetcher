@@ -21,7 +21,7 @@ The official Sanity clients (`@sanity/client` and `next-sanity`'s `sanityFetch`)
 | **edge-fetcher (with cache)** | **15KB** | **5KB** | **~6KB** |
 | **edge-fetcher (full)** | **23KB** | **8KB** | **~6.5KB** |
 
-**Result**: 87% smaller than official clients, with better edge compatibility!
+**Result**: 87% smaller than official clients, with better edge compatibility.
 
 ## Features
 
