@@ -6,7 +6,14 @@
  */
 
 // Get config from environment variables
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
+const getProjectId = () => {
+  const id = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+  if (!id) {
+    throw new Error('NEXT_PUBLIC_SANITY_PROJECT_ID environment variable is required');
+  }
+  return id;
+};
+
 const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2025-02-10';
 
 // Get the viewer token - check multiple possible env vars
@@ -69,6 +76,7 @@ export async function edgeSanityFetch<T>({
   await rateLimiter.throttle();
 
   // Build the query URL
+  const projectId = getProjectId();
   const baseUrl = useCdn
     ? `https://${projectId}.apicdn.sanity.io`
     : `https://${projectId}.api.sanity.io`;

@@ -5,7 +5,7 @@
  * @license MIT
  */
 
-import { edgeSanityFetch, type EdgeSanityFetchOptions } from './core';
+import { edgeSanityFetch, type EdgeSanityFetchOptions, type QueryParams } from './core';
 import { Redis } from '@upstash/redis';
 
 // Check if Upstash Redis is configured
@@ -19,26 +19,26 @@ const isRedisConfigured = !!(REDIS_URL && (REDIS_TOKEN || REDIS_READ_ONLY_TOKEN)
 let redis: Redis | null = null;
 let redisWriter: Redis | null = null;
 
-if (isRedisConfigured) {
+if (isRedisConfigured && REDIS_URL && (REDIS_TOKEN || REDIS_READ_ONLY_TOKEN)) {
   try {
     redis = new Redis({
-      url: REDIS_URL!,
-      token: (REDIS_READ_ONLY_TOKEN || REDIS_TOKEN)!,
+      url: REDIS_URL,
+      token: (REDIS_READ_ONLY_TOKEN || REDIS_TOKEN) as string,
       automaticDeserialization: true,
     });
     
     // Separate writer client if write token available
     if (REDIS_TOKEN) {
       redisWriter = new Redis({
-        url: REDIS_URL!,
+        url: REDIS_URL,
         token: REDIS_TOKEN,
         automaticDeserialization: true,
       });
     } else {
       redisWriter = redis;
     }
-  } catch (error) {
-    console.warn('Failed to initialize Redis client:', error);
+  } catch {
+    // Failed to initialize Redis client
     redis = null;
     redisWriter = null;
   }
@@ -72,7 +72,7 @@ interface CachedFetchOptions extends EdgeSanityFetchOptions {
 function generateCacheKey(
   dataset: string,
   query: string,
-  params?: Record<string, any>
+  params?: QueryParams
 ): string {
   const baseKey = `sanity:${dataset}:${query}`;
   if (!params || Object.keys(params).length === 0) {
@@ -92,7 +92,7 @@ function generateCacheKey(
  * In-memory LRU cache for edge runtime
  */
 class MemoryCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private maxSize = 100;
   
   get<T>(key: string): T | null {
@@ -108,7 +108,7 @@ class MemoryCache {
     this.cache.delete(key);
     this.cache.set(key, entry);
     
-    return entry.value;
+    return entry.value as T;
   }
   
   set<T>(key: string, value: T, ttl: number): void {
@@ -175,9 +175,7 @@ export async function cachedSanityFetch<T>(
   if (!force) {
     const memoryResult = memoryCache.get<T>(cacheKey);
     if (memoryResult !== null) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🎯 Cache hit (memory):', cacheKey.substring(0, 50));
-      }
+      // Cache hit from memory
       return memoryResult;
     }
   }
@@ -187,25 +185,21 @@ export async function cachedSanityFetch<T>(
     try {
       const redisEntry = await redis.get<CacheEntry<T>>(cacheKey);
       if (redisEntry && Date.now() <= redisEntry.validUntil) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🎯 Cache hit (Redis):', cacheKey.substring(0, 50));
-        }
+        // Cache hit from Redis
         
         // Populate memory cache
         memoryCache.set(cacheKey, redisEntry.value, ttl);
         
         return redisEntry.value;
       }
-    } catch (error) {
-      console.warn('Redis cache read error:', error);
+    } catch {
+      // Redis cache read error, continue to fetch from origin
       // Continue to fetch from origin
     }
   }
   
   // Layer 3: Fetch from origin
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔄 Cache miss, fetching:', cacheKey.substring(0, 50));
-  }
+  // Cache miss, fetching from origin
   
   let result: T;
   
@@ -241,8 +235,8 @@ export async function cachedSanityFetch<T>(
         validUntil: Date.now() + (ttl * 1000)
       };
       await redisWriter.set(cacheKey, entry, { ex: ttl });
-    } catch (error) {
-      console.warn('Redis cache write error:', error);
+    } catch {
+      // Redis cache write error, continue without caching
       // Continue without caching
     }
   }
@@ -259,7 +253,7 @@ export function createCachedFetcher(
 ) {
   return <T>(
     query: string,
-    params?: Record<string, any>,
+    params?: QueryParams,
     cacheOverrides?: CachedFetchOptions['cache']
   ) => {
     return cachedSanityFetch<T>({
@@ -294,20 +288,20 @@ export async function clearSanityCache(options?: {
     } else {
       // Note: Memory cache doesn't support pattern matching
       // Would need to iterate all keys for pattern support
-      console.warn('Pattern-based memory cache clearing not implemented');
+      // Pattern-based memory cache clearing not implemented
     }
   }
   
   // Clear Redis cache
-  if (clearRedis && redisWriter) {
+  if (clearRedis && redisWriter && redis) {
     try {
       const keyPattern = pattern || (dataset ? `sanity:${dataset}:*` : 'sanity:*');
-      const keys = await redis!.keys(keyPattern);
+      const keys = await redis.keys(keyPattern);
       if (keys.length > 0) {
         await redisWriter.del(...keys);
       }
-    } catch (error) {
-      console.error('Failed to clear Redis cache:', error);
+    } catch {
+      // Failed to clear Redis cache
     }
   }
 }
@@ -319,7 +313,7 @@ export async function warmSanityCache(
   queries: Array<{
     dataset: string;
     query: string;
-    params?: Record<string, any>;
+    params?: QueryParams;
     ttl?: number;
   }>
 ): Promise<void> {
@@ -330,8 +324,8 @@ export async function warmSanityCache(
         query,
         params,
         cache: { ttl }
-      }).catch(error => {
-        console.error(`Failed to warm cache for query:`, query, error);
+      }).catch(() => {
+        // Failed to warm cache for query
       })
     )
   );

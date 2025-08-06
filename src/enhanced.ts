@@ -36,10 +36,10 @@ export async function edgeSanityFetchWithRetry<T>(
     retries: 3,
     minTimeout: 100,
     maxTimeout: 2000,
-    onFailedAttempt: (error: any) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`Sanity fetch attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`);
-      }
+    onFailedAttempt: (error: { attemptNumber: number; retriesLeft: number }) => {
+      // Sanity fetch attempt failed, will retry
+      void error.attemptNumber;
+      void error.retriesLeft;
     }
   };
 

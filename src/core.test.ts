@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, MockedFunction } from 'vitest';
 import { edgeSanityFetch, createEdgeSanityFetcher } from './core';
 import type { EdgeSanityFetchOptions } from './core';
 
-// Mock fetch globally
-global.fetch = vi.fn();
+// Mock fetch globally with proper types
+global.fetch = vi.fn() as MockedFunction<typeof fetch>;
 
 // Set env vars before importing the module
 process.env.NEXT_PUBLIC_SANITY_PROJECT_ID = 'test-project';
@@ -21,7 +21,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: { test: 'data' } })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       const options: EdgeSanityFetchOptions = {
         dataset: 'production',
@@ -43,7 +43,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await edgeSanityFetch({
         dataset: 'production',
@@ -65,7 +65,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await edgeSanityFetch({
         dataset: 'production',
@@ -88,7 +88,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await edgeSanityFetch({
         dataset: 'production',
@@ -96,7 +96,7 @@ describe('edgeSanityFetch', () => {
         useAuth: true
       });
 
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
       expect(callUrl).toContain('perspective=previewDrafts');
     });
 
@@ -105,7 +105,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await edgeSanityFetch({
         dataset: 'production',
@@ -113,7 +113,7 @@ describe('edgeSanityFetch', () => {
         useAuth: false
       });
 
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
       expect(callUrl).not.toContain('perspective=');
     });
   });
@@ -126,7 +126,7 @@ describe('edgeSanityFetch', () => {
         statusText: 'Not Found',
         text: vi.fn().mockResolvedValue('Document not found')
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await expect(edgeSanityFetch({
         dataset: 'production',
@@ -135,7 +135,7 @@ describe('edgeSanityFetch', () => {
     });
 
     it('should handle network errors gracefully', async () => {
-      (global.fetch as any).mockRejectedValue(new Error('Network error'));
+      vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
 
       await expect(edgeSanityFetch({
         dataset: 'production',
@@ -150,7 +150,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       await edgeSanityFetch({
         dataset: 'production',
@@ -161,7 +161,7 @@ describe('edgeSanityFetch', () => {
         }
       });
 
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
       expect(callUrl).toContain('%24type=%22post%22'); // URL encoded $
       expect(callUrl).toContain('%24slug=%22test-post%22'); // URL encoded $
     });
@@ -173,13 +173,13 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: { id: 'test' } })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       const fetcher = createEdgeSanityFetcher('staging', false);
       const result = await fetcher('*[_type == "test"]');
 
       expect(result).toEqual({ id: 'test' });
-      const callUrl = (global.fetch as any).mock.calls[0][0];
+      const callUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
       expect(callUrl).toContain('/staging');
     });
 
@@ -188,7 +188,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       const fetcher = createEdgeSanityFetcher('production', true);
       await fetcher('*[_type == "test"]');
@@ -210,7 +210,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       const start = Date.now();
       
@@ -245,7 +245,7 @@ describe('edgeSanityFetch', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({ result: {} })
       };
-      (global.fetch as any).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as Response);
 
       // Should work without token (just no auth)
       await expect(edgeSanityFetch({
