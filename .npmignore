@@ -1,0 +1,32 @@
+# Source files (only ship built files)
+src/**/*.test.ts
+src/**/*.spec.ts
+examples/
+check-size.mjs
+
+# Config files
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+.eslintrc*
+.prettierrc*
+
+# Git
+.git/
+.gitignore
+
+# Development
+.env
+.env.local
+*.log
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
