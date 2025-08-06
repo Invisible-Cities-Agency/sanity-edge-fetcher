@@ -5,7 +5,9 @@
  * @license MIT
  */
 
-import { projectId, apiVersion } from '../env';
+// Get config from environment variables
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
+const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2025-02-10';
 
 export type QueryParams = Record<string, string | number | boolean | null | undefined | Array<string | number | boolean>>;
 
