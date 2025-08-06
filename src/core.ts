@@ -9,6 +9,13 @@
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
 const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2025-02-10';
 
+// Get the viewer token - check multiple possible env vars
+const getViewerToken = () => {
+  return process.env.SANITY_VIEWER_TOKEN || 
+         process.env.SANITY_API_READ_TOKEN ||
+         process.env.NEXT_PUBLIC_SANITY_VIEWER_TOKEN;
+};
+
 export type QueryParams = Record<string, string | number | boolean | null | undefined | Array<string | number | boolean>>;
 
 export interface EdgeSanityFetchOptions {
@@ -70,8 +77,8 @@ export async function edgeSanityFetch<T>({
   url.searchParams.set('query', query);
   
   if (useAuth) {
+    // Use 'previewDrafts' perspective to see draft documents merged with published
     url.searchParams.set('perspective', 'previewDrafts');
-    url.searchParams.set('visibility', 'query');
   }
 
   // Add parameters
@@ -86,18 +93,19 @@ export async function edgeSanityFetch<T>({
 
   // Use env var for auth to maintain static generation compatibility
   if (useAuth) {
-    const envToken = process.env.SANITY_VIEWER_TOKEN;
+    const envToken = getViewerToken();
     if (envToken) {
       headers['Authorization'] = `Bearer ${envToken}`;
     }
   }
-
+  
   const response = await fetch(url.toString(), {
     method: 'GET',
     headers,
   });
 
   if (!response.ok) {
+    const errorBody = await response.text();
     throw new Error(`Sanity fetch failed: ${response.status} ${response.statusText}`);
   }
 

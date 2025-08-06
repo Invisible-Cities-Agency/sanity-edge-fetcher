@@ -190,6 +190,44 @@ const data = await batchSanityFetch({
 // data.posts, data.authors, data.categories
 ```
 
+## Draft Mode Support
+
+The fetcher automatically handles Sanity's perspective API for draft/preview mode:
+
+```typescript
+// When useAuth is true, the fetcher sets perspective: 'previewDrafts'
+const authenticatedFetcher = createEdgeSanityFetcher('production', true);
+
+// In your page/component
+import { draftMode } from 'next/headers';
+
+export async function MyPage() {
+  const { isEnabled } = await draftMode();
+  
+  // Choose fetcher based on draft mode
+  const fetcher = isEnabled ? fetchers.authenticated : fetchers.basic;
+  const content = await fetcher<PageContent>(query);
+  
+  // With previewDrafts perspective, queries for 'myDoc' 
+  // will return 'drafts.myDoc' if it exists
+}
+```
+
+### How It Works
+
+1. **Without Authentication**: Queries use default perspective (published only)
+2. **With Authentication + Token**: Queries use `perspective: 'previewDrafts'`
+3. **Draft Resolution**: When querying `_id == "myDoc"` with `previewDrafts`:
+   - Returns draft version (`drafts.myDoc`) if it exists
+   - Falls back to published version if no draft exists
+   - This is handled automatically by Sanity's API
+
+### Required Environment Variable
+
+```bash
+SANITY_VIEWER_TOKEN=your-token-with-viewer-role
+```
+
 ## Real-time Updates
 
 ### Server-Sent Events (Vercel)
