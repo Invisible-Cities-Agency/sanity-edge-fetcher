@@ -20,21 +20,8 @@ interface PRetryModule {
   ) => Promise<T>;
 }
 
-// Type for Next.js cache module
-interface NextCacheModule {
-  unstable_cache: <T>(
-    fn: () => Promise<T>,
-    keyParts?: string[],
-    options?: {
-      revalidate?: number | false;
-      tags?: string[];
-    }
-  ) => () => Promise<T>;
-}
-
 // Dynamic imports for optional dependencies
 let pRetryModule: PRetryModule | null = null;
-let nextCacheModule: NextCacheModule | null = null;
 
 // Lazy load optional dependencies
 const loadPRetry = async (): Promise<PRetryModule | null> => {
@@ -42,20 +29,6 @@ const loadPRetry = async (): Promise<PRetryModule | null> => {
   try {
     pRetryModule = await import('p-retry');
     return pRetryModule;
-  } catch {
-    return null;
-  }
-};
-
-const loadNextCache = (): NextCacheModule | null => {
-  if (nextCacheModule) return nextCacheModule;
-  if (typeof window !== 'undefined') return null;
-  
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const cache = require('next/cache');
-    nextCacheModule = cache;
-    return nextCacheModule;
   } catch {
     return null;
   }
@@ -99,45 +72,22 @@ export async function edgeSanityFetchWithRetry<T>(
 }
 
 /**
- * Creates a cached Sanity fetcher using Next.js unstable_cache
- * Note: Requires Next.js 14+
+ * Creates a cached Sanity fetcher
+ * Note: Use cachedSanityFetch from cache.ts for full caching support
  */
 export function createCachedSanityFetcher(
   dataset: string, 
-  revalidate = 60,
-  tags?: string[]
+  _revalidate = 60,
+  _tags?: string[]
 ) {
-  // Try to load Next.js cache
-  const cache = loadNextCache();
-  
-  // Return uncached fetcher if Next.js cache not available
-  if (!cache) {
-    return <T>(query: string, params?: QueryParams) => 
-      edgeSanityFetch<T>({
-        dataset,
-        query,
-        params,
-        useCdn: true
-      });
-  }
-  
-  return <T>(query: string, params?: QueryParams) => {
-    const cachedFetch = cache.unstable_cache(
-      async () => edgeSanityFetch<T>({
-        dataset,
-        query,
-        params,
-        useCdn: true
-      }),
-      [`sanity-${dataset}`, query],
-      {
-        revalidate,
-        tags: tags || [`sanity-${dataset}`]
-      }
-    );
-    
-    return cachedFetch();
-  };
+  // Return basic fetcher - for caching use cachedSanityFetch from cache.ts
+  return <T>(query: string, params?: QueryParams) => 
+    edgeSanityFetch<T>({
+      dataset,
+      query,
+      params,
+      useCdn: true
+    });
 }
 
 /**

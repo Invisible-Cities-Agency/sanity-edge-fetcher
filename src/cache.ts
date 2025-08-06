@@ -165,8 +165,7 @@ export async function cachedSanityFetch<T>(
     ttl = 60, // 1 minute default
     prefix = '',
     force = false,
-    useRedis = true,
-    useNextCache = true
+    useRedis = true
   } = cache;
   
   const cacheKey = prefix + generateCacheKey(dataset, query, params);
@@ -201,29 +200,8 @@ export async function cachedSanityFetch<T>(
   // Layer 3: Fetch from origin
   // Cache miss, fetching from origin
   
-  let result: T;
-  
-  // Use Next.js cache if available and enabled
-  if (useNextCache && typeof window === 'undefined') {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { unstable_cache } = require('next/cache');
-      const cachedFetch = unstable_cache(
-        async () => edgeSanityFetch<T>(options),
-        [cacheKey],
-        {
-          revalidate: ttl,
-          tags: [`sanity-${dataset}`]
-        }
-      );
-      result = await cachedFetch();
-    } catch {
-      // Next.js cache not available, fetch directly
-      result = await edgeSanityFetch<T>(options);
-    }
-  } else {
-    result = await edgeSanityFetch<T>(options);
-  }
+  // Fetch from origin (Next.js cache removed for edge compatibility)
+  const result = await edgeSanityFetch<T>(options);
   
   // Populate caches
   memoryCache.set(cacheKey, result, ttl);
