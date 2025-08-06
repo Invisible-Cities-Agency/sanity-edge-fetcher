@@ -206,6 +206,7 @@ export async function cachedSanityFetch<T>(
   // Use Next.js cache if available and enabled
   if (useNextCache && typeof window === 'undefined') {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { unstable_cache } = require('next/cache');
       const cachedFetch = unstable_cache(
         async () => edgeSanityFetch<T>(options),

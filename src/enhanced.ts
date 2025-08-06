@@ -7,13 +7,59 @@
 
 import { edgeSanityFetch, type EdgeSanityFetchOptions, type QueryParams } from './core';
 
-// Try to load p-retry if available
-let pRetry: any;
-try {
-  pRetry = require('p-retry');
-} catch {
-  // p-retry not installed, will use basic fetch
+// Type for p-retry module
+interface PRetryModule {
+  default: <T>(
+    input: () => Promise<T>,
+    options?: {
+      retries?: number;
+      minTimeout?: number;
+      maxTimeout?: number;
+      onFailedAttempt?: (error: { attemptNumber: number; retriesLeft: number }) => void;
+    }
+  ) => Promise<T>;
 }
+
+// Type for Next.js cache module
+interface NextCacheModule {
+  unstable_cache: <T>(
+    fn: () => Promise<T>,
+    keyParts?: string[],
+    options?: {
+      revalidate?: number | false;
+      tags?: string[];
+    }
+  ) => () => Promise<T>;
+}
+
+// Dynamic imports for optional dependencies
+let pRetryModule: PRetryModule | null = null;
+let nextCacheModule: NextCacheModule | null = null;
+
+// Lazy load optional dependencies
+const loadPRetry = async (): Promise<PRetryModule | null> => {
+  if (pRetryModule) return pRetryModule;
+  try {
+    pRetryModule = await import('p-retry');
+    return pRetryModule;
+  } catch {
+    return null;
+  }
+};
+
+const loadNextCache = (): NextCacheModule | null => {
+  if (nextCacheModule) return nextCacheModule;
+  if (typeof window !== 'undefined') return null;
+  
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const cache = require('next/cache');
+    nextCacheModule = cache;
+    return nextCacheModule;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Fetches data from Sanity with automatic retry support
@@ -27,8 +73,11 @@ export async function edgeSanityFetchWithRetry<T>(
     maxTimeout?: number;
   }
 ): Promise<T> {
+  // Try to load p-retry if available
+  const retry = await loadPRetry();
+  
   // If p-retry not available, fall back to basic fetch
-  if (!pRetry) {
+  if (!retry) {
     return edgeSanityFetch<T>(options);
   }
 
@@ -43,7 +92,7 @@ export async function edgeSanityFetchWithRetry<T>(
     }
   };
 
-  return pRetry(
+  return retry.default(
     () => edgeSanityFetch<T>(options),
     { ...defaultRetryOptions, ...retryOptions }
   );
@@ -58,29 +107,11 @@ export function createCachedSanityFetcher(
   revalidate = 60,
   tags?: string[]
 ) {
-  // Dynamic import to avoid issues if not in Next.js environment
-  try {
-    const { unstable_cache } = require('next/cache');
-    
-    return <T>(query: string, params?: QueryParams) => {
-      const cachedFetch = unstable_cache(
-        async () => edgeSanityFetch<T>({
-          dataset,
-          query,
-          params,
-          useCdn: true
-        }),
-        [`sanity-${dataset}`, query],
-        {
-          revalidate,
-          tags: tags || [`sanity-${dataset}`]
-        }
-      );
-      
-      return cachedFetch();
-    };
-  } catch {
-    // Not in Next.js or cache not available, return regular fetcher
+  // Try to load Next.js cache
+  const cache = loadNextCache();
+  
+  // Return uncached fetcher if Next.js cache not available
+  if (!cache) {
     return <T>(query: string, params?: QueryParams) => 
       edgeSanityFetch<T>({
         dataset,
@@ -89,6 +120,24 @@ export function createCachedSanityFetcher(
         useCdn: true
       });
   }
+  
+  return <T>(query: string, params?: QueryParams) => {
+    const cachedFetch = cache.unstable_cache(
+      async () => edgeSanityFetch<T>({
+        dataset,
+        query,
+        params,
+        useCdn: true
+      }),
+      [`sanity-${dataset}`, query],
+      {
+        revalidate,
+        tags: tags || [`sanity-${dataset}`]
+      }
+    );
+    
+    return cachedFetch();
+  };
 }
 
 /**
@@ -100,7 +149,7 @@ export function createSanityEventSource(
   dataset = 'production',
   options?: {
     endpoint?: string;
-    onMessage?: (data: any) => void;
+    onMessage?: (data: unknown) => void;
     onError?: (error: Event) => void;
   }
 ) {
@@ -118,8 +167,8 @@ export function createSanityEventSource(
         if (options.onMessage) {
           options.onMessage(data);
         }
-      } catch (error) {
-        console.error('Failed to parse SSE data:', error);
+      } catch {
+        // Failed to parse SSE data
       }
     };
   }
@@ -132,15 +181,22 @@ export function createSanityEventSource(
 }
 
 /**
+ * Result type for batch fetching
+ */
+export type BatchResult<T extends Record<string, unknown>> = {
+  [K in keyof T]: T[K] | null;
+};
+
+/**
  * Batch fetcher for multiple queries in a single request
  * Reduces API calls and improves performance
  */
-export async function batchSanityFetch<T extends Record<string, any>>(
+export async function batchSanityFetch<T extends Record<string, unknown>>(
   queries: Record<string, { query: string; params?: QueryParams }>,
   dataset: string,
   options?: { useAuth?: boolean; useCdn?: boolean }
-): Promise<T> {
-  const results: Record<string, any> = {};
+): Promise<BatchResult<T>> {
+  const results: Record<string, unknown> = {};
   
   // Use Promise.all for parallel fetching
   await Promise.all(
@@ -152,12 +208,12 @@ export async function batchSanityFetch<T extends Record<string, any>>(
           params,
           ...options
         });
-      } catch (error) {
-        console.error(`Failed to fetch ${key}:`, error);
+      } catch {
+        // Failed to fetch this query
         results[key] = null;
       }
     })
   );
   
-  return results as T;
+  return results as BatchResult<T>;
 }
