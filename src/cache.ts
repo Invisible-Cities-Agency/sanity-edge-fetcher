@@ -115,7 +115,9 @@ class MemoryCache {
     // Evict oldest if at capacity
     if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
     }
     
     this.cache.set(key, {
@@ -131,6 +133,10 @@ class MemoryCache {
   
   clear(): void {
     this.cache.clear();
+  }
+  
+  size(): number {
+    return this.cache.size;
   }
 }
 
@@ -336,7 +342,7 @@ export function getCacheStatus() {
   return {
     memory: {
       available: true,
-      size: memoryCache.cache.size
+      size: memoryCache.size()
     },
     redis: {
       available: isRedisConfigured && redis !== null,

@@ -115,7 +115,9 @@ export function createSanityEventSource(
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        options.onMessage(data);
+        if (options.onMessage) {
+          options.onMessage(data);
+        }
       } catch (error) {
         console.error('Failed to parse SSE data:', error);
       }

@@ -2,6 +2,7 @@
   "name": "@invisible-cities/sanity-edge-fetcher",
   "version": "1.0.0",
   "description": "Lightweight, Edge Runtime-compatible Sanity client for Next.js and Vercel Edge Functions",
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",

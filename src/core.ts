@@ -105,7 +105,7 @@ export async function edgeSanityFetch<T>({
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
+    await response.text(); // Consume the body to prevent memory leak
     throw new Error(`Sanity fetch failed: ${response.status} ${response.statusText}`);
   }
 
