@@ -1,9 +1,22 @@
 /**
  * @file core.ts
- * @description Edge-compatible Sanity data fetcher core
+ * @description Next.js-native, edge-compatible Sanity data fetcher
  * @author Invisible Cities Agency
  * @license MIT
  */
+
+// Helper to check if draft mode is enabled in Next.js
+async function isDraftModeEnabled(): Promise<boolean> {
+  try {
+    // Dynamic import to avoid build issues in non-Next.js environments
+    const { draftMode } = await import('next/headers');
+    const draft = await draftMode();
+    return draft.isEnabled;
+  } catch {
+    // Not in Next.js or draft mode not available
+    return false;
+  }
+}
 
 // Get config from environment variables
 const getProjectId = () => {
@@ -134,4 +147,139 @@ export function createEdgeSanityFetcher(dataset: string, useAuth = false) {
     };
     return edgeSanityFetch<T>(options);
   };
+}
+
+/**
+ * Next.js-aware Sanity fetcher that automatically handles draft mode
+ * This is the primary fetcher for Next.js applications
+ * 
+ * @example
+ * const data = await sanityFetch('*[_type == "post"][0]');
+ */
+export async function sanityFetch<T = any>(
+  query: string,
+  params?: QueryParams,
+  options?: {
+    dataset?: string;
+    /** Override automatic draft mode detection */
+    forceAuth?: boolean;
+  }
+): Promise<T> {
+  const dataset = options?.dataset || process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+  const useAuth = options?.forceAuth ?? await isDraftModeEnabled();
+  
+  return edgeSanityFetch<T>({
+    dataset,
+    query,
+    params,
+    useCdn: !useAuth, // Use CDN when not authenticated
+    useAuth,
+  });
+}
+
+/**
+ * Sanity fetcher with automatic draft fallback
+ * Tries to fetch published content first, falls back to drafts if empty
+ * Perfect for singleton documents that might only exist as drafts
+ * 
+ * @example
+ * const page = await sanityFetchWithFallback('*[_type == "page" && slug.current == $slug][0]', { slug });
+ */
+export async function sanityFetchWithFallback<T = any>(
+  query: string,
+  params?: QueryParams,
+  options?: {
+    dataset?: string;
+    /** Log when falling back to drafts */
+    logFallback?: boolean;
+  }
+): Promise<T> {
+  const dataset = options?.dataset || process.env.NEXT_PUBLIC_SANITY_DATASET || 'production';
+  const isNextDraftMode = await isDraftModeEnabled();
+  
+  // If already in draft mode, just use authenticated fetch
+  if (isNextDraftMode) {
+    return edgeSanityFetch<T>({
+      dataset,
+      query,
+      params,
+      useCdn: false,
+      useAuth: true,
+    });
+  }
+  
+  // Try published content first
+  const publishedResult = await edgeSanityFetch<T>({
+    dataset,
+    query,
+    params,
+    useCdn: true,
+    useAuth: false,
+  });
+  
+  // If we got content, return it
+  if (publishedResult) {
+    return publishedResult;
+  }
+  
+  // No published content, try drafts
+  if (options?.logFallback !== false && process.env.NODE_ENV !== 'production') {
+    console.log('[sanityFetchWithFallback] No published content found, checking for drafts...');
+  }
+  
+  const draftResult = await edgeSanityFetch<T>({
+    dataset,
+    query,
+    params,
+    useCdn: false,
+    useAuth: true,
+  });
+  
+  if (draftResult && options?.logFallback !== false && process.env.NODE_ENV !== 'production') {
+    console.log('[sanityFetchWithFallback] Draft content found and returned');
+  }
+  
+  return draftResult;
+}
+
+/**
+ * Static content fetcher - always uses CDN, never authenticates
+ * Use for global settings and content that rarely changes
+ * 
+ * @example
+ * const settings = await sanityFetchStatic('*[_type == "siteSettings"][0]');
+ */
+export async function sanityFetchStatic<T = any>(
+  query: string,
+  params?: QueryParams,
+  dataset?: string
+): Promise<T> {
+  return edgeSanityFetch<T>({
+    dataset: dataset || process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
+    query,
+    params,
+    useCdn: true,
+    useAuth: false,
+  });
+}
+
+/**
+ * Authenticated fetcher - always uses authentication
+ * Use when you need to ensure draft content is visible
+ * 
+ * @example
+ * const drafts = await sanityFetchAuthenticated('*[_type == "post" && _id in path("drafts.**")]');
+ */
+export async function sanityFetchAuthenticated<T = any>(
+  query: string,
+  params?: QueryParams,
+  dataset?: string
+): Promise<T> {
+  return edgeSanityFetch<T>({
+    dataset: dataset || process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
+    query,
+    params,
+    useCdn: false,
+    useAuth: true,
+  });
 }

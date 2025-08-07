@@ -96,6 +96,13 @@ export const realtimeConfig = {
 
 /**
  * Pre-configured fetchers for common use cases
+ * NOTE: For Next.js apps, use the smart fetchers from the main export instead:
+ * - sanityFetch() - Auto-detects draft mode
+ * - sanityFetchWithFallback() - Smart fallback to drafts
+ * - sanityFetchStatic() - Always CDN
+ * - sanityFetchAuthenticated() - Always authenticated
+ * 
+ * These are lower-level fetchers for advanced use cases:
  */
 export const fetchers = {
   /**

@@ -1,11 +1,19 @@
 /**
  * @file index.ts
- * @description Sanity Edge Fetcher - Edge-compatible Sanity client
+ * @description Sanity Edge Fetcher - Next.js-native Sanity client for edge runtime
  * @author Invisible Cities Agency
  * @license MIT
  */
 
-// Core functionality
+// Primary Next.js-aware exports (use these!)
+export {
+  sanityFetch,                    // Auto-detects draft mode
+  sanityFetchWithFallback,        // Smart fallback to drafts
+  sanityFetchStatic,              // Always CDN, no auth
+  sanityFetchAuthenticated,       // Always authenticated
+} from './core';
+
+// Core functionality (for advanced use cases)
 export {
   edgeSanityFetch,
   createEdgeSanityFetcher,
@@ -30,5 +38,5 @@ export {
   getCacheStatus
 } from './cache';
 
-// Default export for simple cases
-export { edgeSanityFetch as default } from './core';
+// Default export - the smart Next.js-aware fetcher
+export { sanityFetch as default } from './core';
