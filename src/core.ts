@@ -156,7 +156,7 @@ export function createEdgeSanityFetcher(dataset: string, useAuth = false) {
  * @example
  * const data = await sanityFetch('*[_type == "post"][0]');
  */
-export async function sanityFetch<T = any>(
+export async function sanityFetch<T = unknown>(
   query: string,
   params?: QueryParams,
   options?: {
@@ -185,7 +185,7 @@ export async function sanityFetch<T = any>(
  * @example
  * const page = await sanityFetchWithFallback('*[_type == "page" && slug.current == $slug][0]', { slug });
  */
-export async function sanityFetchWithFallback<T = any>(
+export async function sanityFetchWithFallback<T = unknown>(
   query: string,
   params?: QueryParams,
   options?: {
@@ -224,7 +224,7 @@ export async function sanityFetchWithFallback<T = any>(
   
   // No published content, try drafts
   if (options?.logFallback !== false && process.env.NODE_ENV !== 'production') {
-    console.log('[sanityFetchWithFallback] No published content found, checking for drafts...');
+    console.warn('[sanityFetchWithFallback] No published content found, checking for drafts...');
   }
   
   const draftResult = await edgeSanityFetch<T>({
@@ -236,7 +236,7 @@ export async function sanityFetchWithFallback<T = any>(
   });
   
   if (draftResult && options?.logFallback !== false && process.env.NODE_ENV !== 'production') {
-    console.log('[sanityFetchWithFallback] Draft content found and returned');
+    console.warn('[sanityFetchWithFallback] Draft content found and returned');
   }
   
   return draftResult;
@@ -249,7 +249,7 @@ export async function sanityFetchWithFallback<T = any>(
  * @example
  * const settings = await sanityFetchStatic('*[_type == "siteSettings"][0]');
  */
-export async function sanityFetchStatic<T = any>(
+export async function sanityFetchStatic<T = unknown>(
   query: string,
   params?: QueryParams,
   dataset?: string
@@ -270,7 +270,7 @@ export async function sanityFetchStatic<T = any>(
  * @example
  * const drafts = await sanityFetchAuthenticated('*[_type == "post" && _id in path("drafts.**")]');
  */
-export async function sanityFetchAuthenticated<T = any>(
+export async function sanityFetchAuthenticated<T = unknown>(
   query: string,
   params?: QueryParams,
   dataset?: string

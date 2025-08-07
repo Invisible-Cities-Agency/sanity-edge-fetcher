@@ -19,8 +19,8 @@ vi.mock('next/headers', () => ({
 }));
 
 describe('Next.js-aware Sanity Fetchers', () => {
-  let mockDraftMode: any;
-  let mockFetch: any;
+  let mockDraftMode: ReturnType<typeof vi.mocked>;
+  let mockFetch: ReturnType<typeof vi.mocked>;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -53,7 +53,7 @@ describe('Next.js-aware Sanity Fetchers', () => {
 
       // Check that fetch was called with auth header and previewDrafts perspective
       expect(mockFetch).toHaveBeenCalled();
-      const [url, options] = mockFetch.mock.calls[0];
+      const [url] = mockFetch.mock.calls[0];
       expect(url).toContain('perspective=previewDrafts');
       expect(result).toEqual(mockData);
     });
